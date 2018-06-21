@@ -81,7 +81,7 @@ var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
 		},
 		func(s *autoscaling.VerticalPodAutoscalerSpec, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
-			s.Selector = &metav1.LabelSelector{}
+			s.Selector = randomSelector(c)
 			updateModes := []autoscaling.UpdateMode{
 				autoscaling.UpdateModeOff,
 				autoscaling.UpdateModeInitial,
@@ -92,28 +92,35 @@ var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
 				autoscaling.ContainerScalingModeAuto,
 				autoscaling.ContainerScalingModeOff,
 			}
-			s.UpdatePolicy = &autoscaling.PodUpdatePolicy{UpdateMode: &updateModes[c.Rand.Intn(len(updateModes))]}
+			if randomBool(c) {
+				s.UpdatePolicy = &autoscaling.PodUpdatePolicy{UpdateMode: &updateModes[c.Rand.Intn(len(updateModes))]}
+			}
 			if s.ResourcePolicy != nil {
 				for i := range s.ResourcePolicy.ContainerPolicies {
-					s.ResourcePolicy.ContainerPolicies[i].Mode = &scalingModes[c.Rand.Intn(len(scalingModes))]
-					s.ResourcePolicy.ContainerPolicies[i].MinAllowed = randomResources(c)
-					s.ResourcePolicy.ContainerPolicies[i].MaxAllowed = randomResources(c)
+					if randomBool(c) {
+						s.ResourcePolicy.ContainerPolicies[i].Mode = &scalingModes[c.Rand.Intn(len(scalingModes))]
+					}
+					if randomBool(c) {
+						s.ResourcePolicy.ContainerPolicies[i].MinAllowed = randomResources(c)
+					}
+					if randomBool(c) {
+						s.ResourcePolicy.ContainerPolicies[i].MaxAllowed = randomResources(c)
+					}
 				}
 			}
 		},
 		func(s *autoscaling.VerticalPodAutoscalerStatus, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
-			if s.Recommendation == nil {
-				s.Recommendation = &autoscaling.RecommendedPodResources{}
-			}
-			if len(s.Recommendation.ContainerRecommendations) == 0 {
-				s.Recommendation.ContainerRecommendations = []autoscaling.RecommendedContainerResources{
-					{
-						ContainerName: c.RandString(),
-						Target:        randomResources(c),
-						LowerBound:    randomResources(c),
-						UpperBound:    randomResources(c),
-					},
+			if s.Recommendation != nil {
+				for i := range s.Recommendation.ContainerRecommendations {
+					s.Recommendation.ContainerRecommendations[i] = autoscaling.RecommendedContainerResources{
+						{
+							ContainerName: c.RandString(),
+							Target:        randomResources(c),
+							LowerBound:    randomResources(c),
+							UpperBound:    randomResources(c),
+						},
+					}
 				}
 			}
 		},
@@ -139,4 +146,8 @@ func randomResources(c fuzz.Continue) api.ResourceList {
 		api.ResourceCPU:    randomQuantity(c),
 		api.ResourceMemory: randomQuantity(c),
 	}
+}
+
+func randomBool(c fuzz.Continue) bool {
+	return c.Rand.Intn(2) == 1
 }
