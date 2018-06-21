@@ -156,7 +156,7 @@ func describerMap(clientConfig *rest.Config) (map[schema.GroupKind]printers.Desc
 		extensions.Kind("NetworkPolicy"):               &NetworkPolicyDescriber{c},
 		extensions.Kind("PodSecurityPolicy"):           &PodSecurityPolicyDescriber{c},
 		autoscaling.Kind("HorizontalPodAutoscaler"):    &HorizontalPodAutoscalerDescriber{c},
-		autoscaling.Kind("VerticalPodAutoscaler"):      &VerticalPodAutoscalerDescriber{c, externalclient},
+		autoscaling.Kind("VerticalPodAutoscaler"):      &VerticalPodAutoscalerDescriber{c},
 		extensions.Kind("DaemonSet"):                   &DaemonSetDescriber{c},
 		extensions.Kind("Deployment"):                  &DeploymentDescriber{c, externalclient},
 		extensions.Kind("Ingress"):                     &IngressDescriber{c},
@@ -2985,28 +2985,22 @@ func describeHorizontalPodAutoscaler(hpa *autoscaling.HorizontalPodAutoscaler, e
 
 // VerticalPodAutoscalerDescriber generates information about a vertical pod autoscaler.
 type VerticalPodAutoscalerDescriber struct {
-	clientset.Interface
-	external externalclient.Interface
+	client clientset.Interface
 }
 
 // Describe describes the vertical pod autoscaler object.
 func (d *VerticalPodAutoscalerDescriber) Describe(namespace, name string, describerSettings printers.DescriberSettings) (string, error) {
-	vpa, err := d.external.AutoscalingV2beta1().VerticalPodAutoscalers(namespace).Get(name, metav1.GetOptions{})
+	vpa, err := d.client.Autoscaling().VerticalPodAutoscalers(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	var events *api.EventList
 	if describerSettings.ShowEvents {
-		events, _ = d.Core().Events(namespace).Search(legacyscheme.Scheme, vpa)
+		events, _ = d.client.Core().Events(namespace).Search(legacyscheme.Scheme, vpa)
 	}
 
-	internalVpa := &autoscaling.VerticalPodAutoscaler{}
-	if err := legacyscheme.Scheme.Convert(vpa, internalVpa, nil); err != nil {
-		return "", err
-	}
-
-	return describeVerticalPodAutoscaler(internalVpa, events, d)
+	return describeVerticalPodAutoscaler(vpa, events, d)
 }
 
 func describeVerticalPodAutoscaler(vpa *autoscaling.VerticalPodAutoscaler, events *api.EventList, d *VerticalPodAutoscalerDescriber) (string, error) {

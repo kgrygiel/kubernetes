@@ -26,7 +26,6 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1950,34 +1949,34 @@ func TestDescribeHorizontalPodAutoscaler(t *testing.T) {
 }
 
 func TestDescribeVerticalPodAutoscaler(t *testing.T) {
-	updateMode := autoscalingv2beta1.UpdateModeAuto
-	containerScalingModeAuto := autoscalingv2beta1.ContainerScalingModeAuto
-	containerScalingModeOff := autoscalingv2beta1.ContainerScalingModeOff
-	vpa := autoscalingv2beta1.VerticalPodAutoscaler{
+	updateMode := autoscaling.UpdateModeAuto
+	containerScalingModeAuto := autoscaling.ContainerScalingModeAuto
+	containerScalingModeOff := autoscaling.ContainerScalingModeOff
+	vpa := autoscaling.VerticalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bar",
 			Namespace: "foo",
 		},
-		Spec: autoscalingv2beta1.VerticalPodAutoscalerSpec{
+		Spec: autoscaling.VerticalPodAutoscalerSpec{
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "baz"}},
-			UpdatePolicy: &autoscalingv2beta1.PodUpdatePolicy{
+			UpdatePolicy: &autoscaling.PodUpdatePolicy{
 				UpdateMode: &updateMode,
 			},
-			ResourcePolicy: &autoscalingv2beta1.PodResourcePolicy{
-				ContainerPolicies: []autoscalingv2beta1.ContainerResourcePolicy{
+			ResourcePolicy: &autoscaling.PodResourcePolicy{
+				ContainerPolicies: []autoscaling.ContainerResourcePolicy{
 					{
 						ContainerName: "container-A",
-						MinAllowed: v1.ResourceList{
-							v1.ResourceCPU: resource.MustParse("100m"),
+						MinAllowed: api.ResourceList{
+							api.ResourceCPU: resource.MustParse("100m"),
 						},
-						MaxAllowed: v1.ResourceList{
-							v1.ResourceCPU: resource.MustParse("200m"),
+						MaxAllowed: api.ResourceList{
+							api.ResourceCPU: resource.MustParse("200m"),
 						},
 					}, {
 						ContainerName: "container-B",
 						Mode:          &containerScalingModeAuto,
-						MinAllowed: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("100M"),
+						MinAllowed: api.ResourceList{
+							api.ResourceMemory: resource.MustParse("100M"),
 						},
 					}, {
 						ContainerName: "container-D",
@@ -1985,28 +1984,28 @@ func TestDescribeVerticalPodAutoscaler(t *testing.T) {
 					}},
 			},
 		},
-		Status: autoscalingv2beta1.VerticalPodAutoscalerStatus{
-			Recommendation: &autoscalingv2beta1.RecommendedPodResources{
-				ContainerRecommendations: []autoscalingv2beta1.RecommendedContainerResources{
+		Status: autoscaling.VerticalPodAutoscalerStatus{
+			Recommendation: &autoscaling.RecommendedPodResources{
+				ContainerRecommendations: []autoscaling.RecommendedContainerResources{
 					{
 						ContainerName: "container-B",
-						Target: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("50m"),
-							v1.ResourceMemory: resource.MustParse("150M"),
+						Target: api.ResourceList{
+							api.ResourceCPU:    resource.MustParse("50m"),
+							api.ResourceMemory: resource.MustParse("150M"),
 						},
 					}, {
 						ContainerName: "container-C",
-						Target: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("60m"),
-							v1.ResourceMemory: resource.MustParse("160M"),
+						Target: api.ResourceList{
+							api.ResourceCPU:    resource.MustParse("60m"),
+							api.ResourceMemory: resource.MustParse("160M"),
 						},
 					},
 				},
 			},
-			Conditions: []autoscalingv2beta1.VerticalPodAutoscalerCondition{
+			Conditions: []autoscaling.VerticalPodAutoscalerCondition{
 				{
-					Type:    autoscalingv2beta1.RecommendationProvided,
-					Status:  v1.ConditionTrue,
+					Type:    autoscaling.RecommendationProvided,
+					Status:  api.ConditionTrue,
 					Reason:  "some reason",
 					Message: "some message",
 				},
@@ -2014,10 +2013,8 @@ func TestDescribeVerticalPodAutoscaler(t *testing.T) {
 		},
 	}
 
-	fake := fake.NewSimpleClientset()
-	versionedFake := versionedfake.NewSimpleClientset(&vpa)
-
-	desc := VerticalPodAutoscalerDescriber{fake, versionedFake}
+	fake := fake.NewSimpleClientset(&vpa)
+	desc := VerticalPodAutoscalerDescriber{fake}
 	vpaDescription, err := desc.Describe("foo", "bar", printers.DescriberSettings{ShowEvents: true})
 	t.Logf("Description for VerticalPodAutoscaler:\n%s", vpaDescription)
 
